@@ -1,0 +1,8 @@
+__pycache__/
+
+nginx/
+!/*/nginx/
+
+# Ignore data produced in runtime
+data/
+!/*/data/

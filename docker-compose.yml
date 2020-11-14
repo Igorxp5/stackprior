@@ -1,0 +1,36 @@
+version: '3'
+services:
+  nginx:
+    container_name: stackprior-nginx
+    image: nginx:latest
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+  mongodb:
+    container_name: stackprior-mongodb
+    image: mongo:latest
+    volumes:
+      - ./data/db:/data/db
+    environment: 
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASS}
+  api:
+    container_name: stackprior-api
+    build:
+      context: ./api
+    volumes:
+      - ./api:/api
+      - ./nginx:/nginx
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment: 
+      PORT: 8080
+      DB_HOST: mongodb
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      NGINX_CONFIG_FILE: /nginx/nginx.conf
+      NGINX_CONTAINER_NAME: stackprior-nginx
+      DOCKER_UNIX_SOCKET: /var/run/docker.sock
+    ports:
+      - 8080:8080
+    depends_on: 
+      - nginx
+      - mongodb
