@@ -1,0 +1,23 @@
+.navbar {
+  background-color: #a3e7d6;
+  position: relative;
+  padding: 0 20px;
+  height: 90px;
+  margin-bottom: 0;
+}
+
+.container {
+  
+}
+
+.logo {
+  color: #ffffff; 
+  font-family: 'Raleway',sans-serif; 
+  font-size: 2.6em; 
+  font-weight: 700px; 
+  line-height: 72px; 
+  margin: 0 0; 
+  text-align: center; 
+  text-transform: uppercase;
+  text-decoration: none;
+}

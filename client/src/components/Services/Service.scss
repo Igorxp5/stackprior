@@ -1,0 +1,49 @@
+.card-item {
+  width: 400px;
+  position: relative;
+  background-color:  #a3e7d6;
+  text-align: center;
+  box-sizing: border-box;
+  padding: 10px;
+  margin-bottom: 30px;
+  border: 1px solid transparent;
+  cursor: pointer;
+
+  &:hover {
+    border: 1px solid #eee;
+
+    .card-item__buy-btn {
+      background-color: #eabf00;
+    }
+  }
+
+
+  &__name {
+    position: relative;
+    padding: 0 20px;
+    height: 45px;
+
+    &::before {
+      content: '';
+      width: 20px;
+      height: 2px;
+      background-color: #eabf00;
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      margin-left: -10px;
+    }
+  }
+
+  &__endpoint {
+    height: 60px;
+
+    .priority {
+      b {
+        font-size: 1.5em;
+        margin-left: 5px;
+      }
+    }
+
+  }
+}
