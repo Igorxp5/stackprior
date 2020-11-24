@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import Services from '../../containers/Items';
+import Items from '../../containers/Items';
 import Header from '../Header/Header';
 import NSModal from '../NewServiceModal/NewServiceModal';
 import './App.css';
@@ -8,6 +8,7 @@ import './App.css';
 const App = () => {
 
   const [isModalVisible, setIsModalVisible] = useState(false);
+
 
   return(
     <div id="home-page">
@@ -17,9 +18,9 @@ const App = () => {
           <h1> Services </h1>
         </div>
         <div className="products-container .col-sm-6">
-          <Services />
+          <Items />
         </div>
-          <button onClick={() => setIsModalVisible(true) }>clique</button>
+          <button onClick={() => setIsModalVisible(true) }>New Service</button>
           {isModalVisible ? ( 
             <NSModal onClose= { () => setIsModalVisible(false)} />
           ) : null}

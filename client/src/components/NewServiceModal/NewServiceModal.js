@@ -81,7 +81,7 @@ class NewServiceModal extends Component {
   handleSubmit(event) {
     const {name, endpoint, selectedPriority, selectedStrategy, server, port, by_priority} = this.state;
     if (selectedStrategy === "DNS") {
-      axios.post('http://localhost:3333/services', { //add the correct
+      axios.post('http://localhost:3333/services', { //to be defined
         name: name,
         endpoint: endpoint,
         selectedPriority: selectedPriority,
@@ -89,7 +89,7 @@ class NewServiceModal extends Component {
         server: server
       }).then( response => console.log("response", response.data))
     } else if (selectedStrategy === "ROUND-ROBIN") {
-      axios.post('http://localhost:3333/services', { //add the correct
+      axios.post('http://localhost:3333/services', { //to be defined
         name: name,
         endpoint: endpoint,
         selectedPriority: selectedPriority,
@@ -98,7 +98,7 @@ class NewServiceModal extends Component {
         port: port
       }).then( response => console.log("response", response.data))
     } else if (selectedStrategy === "BY PRIORITY") {
-      axios.post('http://localhost:3333/services', { //add the correct
+      axios.post('http://localhost:3333/services', { //to be defined
         name: name,
         endpoint: endpoint,
         selectedPriority: selectedPriority,
