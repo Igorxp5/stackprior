@@ -24,6 +24,7 @@ LOG_FORMAT = '[%(threadName)s] %(asctime)s %(levelname)s: %(message)s'
 class PrioritizedItem:
     priority: int
     item: Any=field(compare=False)
+    http_request: bool
 
 
 class PoppablePriorityQueue(PriorityQueue):
@@ -32,29 +33,28 @@ class PoppablePriorityQueue(PriorityQueue):
         super().__init__(maxsize)
     
     def put(self, *args, **kwargs):
-        with self._lock:
-            return PriorityQueue.put(self, *args, **kwargs)
+        return PriorityQueue.put(self, *args, **kwargs)
 
     def get(self, *args, **kwargs):
-        with self._lock:
-            return PriorityQueue.get(self, *args, **kwargs)
+        return PriorityQueue.get(self, *args, **kwargs)
 
     def pop(self, *args, **kwargs):
-        with self._lock:
-            return self.queue.pop(*args, **kwargs)
+        return self.queue.pop(*args, **kwargs)
 
 
 class ProxyConnection(Thread):
-    IDLE_TIMEOUT = 1
+    IDLE_TIMEOUT = 0.5
+    CHUNK_SIZE = 2048
 
     def __init__(self, forward_host, forward_port, stop_event, 
-                 first_request_line, client_socket, address):
+                 first_request_line, client_socket, address, http_request=True):
         self._address = address
         self._first_line = first_request_line
         self._client_socket = client_socket
         self._forward_host = forward_host
         self._forward_port = forward_port
         self._stop_event = stop_event
+        self._http_request = http_request
         super().__init__(daemon=True)
 
     def run(self):
@@ -67,21 +67,39 @@ class ProxyConnection(Thread):
             logging.debug(f'Connected to Forward Server, forwaring request...')
             proxy_socket.sendall(self._first_line)
             client_ip, client_port = self._address 
-            proxy_socket.sendall(b'X-Forwarded-For: ' + client_ip.encode('ascii') + b'\r\n')
+            if self._http_request:
+                proxy_socket.sendall(b'X-Forwarded-For: ' + client_ip.encode('ascii') + b'\r\n')
             buffer_ = None
             while not self._stop_event.is_set() and (buffer_ is None or not buffer_):
-                try:
-                    buffer_ = self._client_socket.recv(4096)
-                except socket.timeout:
-                    pass
-                else:
-                    proxy_socket.sendall(buffer_)
+                buffer_ = b''
+                while True:
                     try:
-                        buffer_ = proxy_socket.recv(4096)
+                        b = self._client_socket.recv(ProxyConnection.CHUNK_SIZE)
+                        if b:
+                            buffer_ += b
+                        else:
+                            break
                     except socket.timeout:
-                        pass
-                    else:
-                        self._client_socket.sendall(buffer_) 
+                        break
+            
+                if buffer_:
+                    # logging.debug(f'Sending to server: {repr(buffer_)}')
+                    proxy_socket.sendall(buffer_)
+                    
+                buffer_ = b''
+                while True:
+                    try:
+                        b = proxy_socket.recv(ProxyConnection.CHUNK_SIZE)
+                        if b:
+                            buffer_ += b
+                        else:
+                            break
+                    except socket.timeout:
+                        break
+
+                if buffer_:
+                    # logging.debug(f'Sending to client: {repr(buffer_)}')
+                    self._client_socket.sendall(buffer_)
 
         except socket.error:
             logging.warning(traceback.format_exc())
@@ -93,7 +111,7 @@ class ProxyConnection(Thread):
 
 
 class RequestProxyManager(Thread):
-    IDLE_TIMEOUT = 15
+    IDLE_TIMEOUT = 30
 
     def __init__(self, queue, stop_event, forward_host, 
                  forward_port, *args, **kwargs):
@@ -114,7 +132,7 @@ class RequestProxyManager(Thread):
             
             logging.debug(f'RequestProxyManager has received: {request.item}')
             ProxyConnection(self._forward_host, self._forward_port, 
-                            self._stop_event, *request.item).start()
+                            self._stop_event, *request.item, request.http_request).start()
     
         logging.info('RequestProxyManager has been terminated')
 
@@ -141,16 +159,19 @@ class RequestHandler(Thread):
         logging.info(f'Handling connection with {self._address[0]}')
         try:
             http_method = RequestHandler.read_until(self._client_socket, b' ')
-            if http_method.decode() not in RequestHandler.HTTP_METHODS:
+            route = RequestHandler.read_until(self._client_socket, b' ')
+            http_version = RequestHandler.read_until(self._client_socket, b'\r\n')
+            if http_version.startswith(b'HTTP') and http_method.decode() not in RequestHandler.HTTP_METHODS:
                 logging.debug(f'Client {self._address[0]} has request ' \
                                 f'an invalid HTTP method: {repr(http_method)}')
                 self._respond_invalid_http_method()
                 return self._client_socket.close()
-            route = RequestHandler.read_until(self._client_socket, b' ')
-            http_version = RequestHandler.read_until(self._client_socket, b'\r\n')
             first_line = http_method + b' ' + route + b' ' + http_version + b'\r\n'
             request = first_line, self._client_socket, self._address
-            logging.info(f'Client {self._address[0]} has requested: {http_method} {route}')
+            if http_version.startswith(b'HTTP'):
+                logging.info(f'Client {self._address[0]} has requested: {http_method} {route}')
+            else:
+                logging.info(f'Client {self._address[0]} is sending other type of message (non-HTTP)')
             self._evaluate_and_put_request(route, request)
         except socket.timeout:
             logging.info(f'Client {self._address[0]} took a long time to send the request')
@@ -171,19 +192,27 @@ class RequestHandler(Thread):
         content += b'Content-Length: 0\r\n\r\n'
         client_socket.sendall(content)
     
-    def _evaluate_and_put_request(self, route, request):
-        priority = self._route_priorities.get(route, float('inf'))
-        if (psutil.cpu_percent() >= self._cpu_threshold 
-            or psutil.virtual_memory().percent >= self._memory_threshold):
-            last_request = self._queue.pop(-1)
-            if last_request.priority > priority:
-                prioritized, deprioritized = request, last_request
+    def _evaluate_and_put_request(self, route, request, http_request=True):
+        if http_request:
+            priority = self._route_priorities.get(route, float('inf'))
+            if not self._queue.empty() and (psutil.cpu_percent() >= self._cpu_threshold 
+                or psutil.virtual_memory().percent >= self._memory_threshold):
+                last_request = self._queue.pop(-1)
+                if last_request.priority > priority:
+                    prioritized, deprioritized = request, last_request
+                else:
+                    prioritized, deprioritized = last_request, request
+                self._drop_request(deprioritized)
             else:
-                prioritized, deprioritized = last_request, request
-            self._drop_request(deprioritized)
+                prioritized = request
+            if prioritized is request:
+                logging.info(f'Add request to the queue with priority: {priority}')
+            else:
+                logging.info(f'Server is overloaded dropping request')
         else:
+            priority = float('inf')
             prioritized = request
-        self._queue.put(PrioritizedItem(priority, prioritized))
+        self._queue.put(PrioritizedItem(priority, prioritized, http_request))
 
     def _respond_invalid_http_method(self):
         self._http_no_body_response(b'HTTP/1.1 405 Method Not Allowed')
