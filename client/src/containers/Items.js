@@ -48,8 +48,9 @@ class Items extends Component{
     return(
       <div>
         <div>
-          <button onClick={() => this.orderBy("asc")}>ordenado</button>
-          <button onClick={() => this.orderBy("prior")}>prioridade</button>
+          <h1>ORDER BY:</h1>
+          <button onClick={() => this.orderBy("asc")}>ALPHABETIC</button>
+          <button onClick={() => this.orderBy("prior")}>PRIORITY</button>
         </div>
         <div>
           {this.state.services.map(service => 

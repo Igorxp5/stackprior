@@ -7,7 +7,7 @@ class NewServiceModal extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      selectedPriority: '',
+      selectedPriority: '1',
       selectedStrategy: '',
       name: '',
       endpoint: '',
@@ -30,11 +30,11 @@ class NewServiceModal extends Component {
     return (
       <div>
         <form onSubmit={this.handleSubmit}>
-          <input placeholder="NAME" name="name" onChange={(e) => this.setState({ name: e.target.value })}/>
-          <input placeholder="ENDPOINT" name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })}/>
+          <input placeholder="NAME" name="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
+          <input placeholder="ENDPOINT" name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required/>
           <select placeholder="PRIORITY"
             onChange={(e) => this.setState({ selectedPriority: e.target.value })}>
-            <option>PRIORITY</option>
+            <option disabled>PRIORITY</option>
             <option>1</option>
             <option>2</option>
             <option>3</option>
@@ -43,7 +43,7 @@ class NewServiceModal extends Component {
             onChange={(e) => this.setState({ selectedStrategy: e.target.value })}>
             <option>STRATEGY</option>
             <option>DNS</option>
-            <option>ROUND-ROBIN</option>
+            <option >ROUND-ROBIN</option>
             <option>BY PRIORITY</option>
           </select>
           <button type="submit">create</button>
@@ -53,7 +53,7 @@ class NewServiceModal extends Component {
   }
 
   strategySelected(selectedType){
-    if (selectedType === "Strategy")
+    if (selectedType === "STRATEGY")
       return ;
     if (selectedType === "DNS")
       return (
@@ -80,6 +80,10 @@ class NewServiceModal extends Component {
 
   handleSubmit(event) {
     const {name, endpoint, selectedPriority, selectedStrategy, server, port, by_priority} = this.state;
+    console.log(selectedStrategy)
+    if (selectedStrategy === '') {
+      {console.log("STRATEGY NOT SELECTED, TRY AGAIN")}
+    }
     if (selectedStrategy === "DNS") {
       axios.post('http://localhost:3333/services', { //to be defined
         name: name,
