@@ -1,0 +1,2 @@
+watchdog==0.10.3
+psutil==5.7.3
