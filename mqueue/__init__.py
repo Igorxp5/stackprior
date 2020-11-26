@@ -244,8 +244,7 @@ class RequestHandler(Thread):
 
 
 class RoutePriorities:
-    def __init__(self, config_file, stop_event):
-        self._stop_event = stop_event
+    def __init__(self, config_file):
         self._config_file = config_file
         self._access_config_lock = Lock()
         self._config = None
@@ -265,14 +264,14 @@ class RoutePriorities:
     
     def _start_observe_file_changes(self):
         observer = Observer()
-        event_handler = ObserverEventHandler(self) 
-        observer.schedule(event_handler, path=self._config_file)
-        observer.start()
+        # event_handler = RoutePriorities.ObserverEventHandler(self)
+        # observer.schedule(event_handler, path=self._config_file)
+        # observer.start()
     
     class ObserverEventHandler(FileModifiedEvent):
-        def __init__(self, route_priorities):
+        def __init__(self, route_priorities, src_path):
             self._route_priorities = route_priorities
-            super().__init__()
+            super().__init__(src_path)
 
         def on_modified(self, event):
             logging.info(f'Config files has modified, updating route priorities...')

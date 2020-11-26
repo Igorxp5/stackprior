@@ -47,7 +47,7 @@ services:
     container_name: stackprior-mqueue
     build:
       context: ./mqueue
-    command: python __init__.py nginx 80 0.0.0.0 80
+    command: python __init__.py -r /nginx/mqueue.json nginx 80 0.0.0.0 80
     volumes:
       - ./mqueue:/mqueue
       - ./nginx:/nginx
