@@ -39,10 +39,11 @@ class ServiceModal extends Component {
     return (
         <Form onSubmit={this.handleSubmit}>
           <InputGroup className="input">
-            <Form.Control placeholder={this.state.name} name="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
+            <Form.Control value={this.state.name} name="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
           </InputGroup>
           <InputGroup className="input">
-            <Form.Control placeholder={this.state.endpoint} name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required/>
+            <InputGroup.Text>/</InputGroup.Text>
+            <Form.Control value={this.state.endpoint} name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required/>
           </InputGroup>
           <InputGroup className="input">
             <Form.Control as="select" custom defaultValue={this.state.priority}
@@ -74,21 +75,21 @@ class ServiceModal extends Component {
   renderStrategy() {
     if (this.state.strategy === "DNS") {
       return(
-        <Form.Control className="input-new" placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
+        <Form.Control className="input-new" value={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
       )
     } else if (this.state.strategy === "ROUND-ROBIN") {
       return (
         <Form>
-          <Form.Control className="input-new" placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
-          <Form.Control className="input-new" placeholder={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
+          <Form.Control className="input-new" value={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
+          <Form.Control className="input-new" value={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
         </Form>
       );
     } else if (this.state.strategy === "BY PRIORITY") {
       return (
         <Form>
-          <Form.Control className="input-new" placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
-          <Form.Control className="input-new" placeholder={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
-          <Form.Control className="input-new" placeholder={this.state.by_priority} onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
+          <Form.Control className="input-new" value={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
+          <Form.Control className="input-new" value={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
+          <Form.Control className="input-new" value={this.state.by_priority} onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
         </Form>
       );
     }
