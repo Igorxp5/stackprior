@@ -1,27 +1,34 @@
-import React, {useState} from 'react';
+import React from 'react';
 
-import './Service.scss';
+import './Services.scss';
+
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Col } from 'react-bootstrap';
 
 import ServiceModal from '../ServiceModal/ServiceModal';
 
 
 const ServicesCard = ({service}) => {
 
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [modalShow, setModalShow] = React.useState(false);
 
   
   return(
-    <div className="card-item" onClick={() => setIsModalVisible(true) }>
-      {isModalVisible ? ( 
-            <ServiceModal service={service} key={service.endpoint}
-             onClose= { () => setIsModalVisible(false)} />
-          ) : null}
-      <h2 className="card-item__name">{service.name}</h2>
-      <p className="card-item__endpoint">{service.endpoint}</p>
-      <div className="priority">
-        <small>{service.priority}</small>
-      </div>
-    </div>
+    <>
+      <Col className="card-item" onClick={() => setModalShow(true) }>
+        <h2 className="card-item__name">{service.name}</h2>
+        <p className="card-item__endpoint">/{service.endpoint}</p>
+        <div className="card-item__priority">
+          <p>{service.priority}</p>
+        </div>
+      </Col>
+      {modalShow ? ( 
+          <ServiceModal service={service} key={service.endpoint} 
+            callbackParent={(bool) => setModalShow(bool)}
+            show={modalShow}
+            onHide={() => setModalShow(false)} />
+        ) : null}
+    </>
     
   )
 }

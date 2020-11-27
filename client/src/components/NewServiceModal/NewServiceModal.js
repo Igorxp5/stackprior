@@ -1,11 +1,17 @@
-import React, { Component, Fragment } from "react";
+import React, { Component } from "react";
 
 import axios from 'axios';
+
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Modal, Form, InputGroup, FormControl, Button } from 'react-bootstrap';
+
+import './NewServiceModal.scss';
 
 class NewServiceModal extends Component {
 
   constructor(props) {
     super(props)
+    
     this.state = {
       selectedPriority: '1',
       selectedStrategy: '',
@@ -17,6 +23,7 @@ class NewServiceModal extends Component {
     }
 
     this.handleSubmit = this.handleSubmit.bind(this);
+    this.closeModal = this.closeModal.bind(this);
   }
 
   handleChange(event){
@@ -29,25 +36,37 @@ class NewServiceModal extends Component {
   renderPrioritySelector() {
     return (
       <div>
-        <form onSubmit={this.handleSubmit}>
-          <input placeholder="NAME" name="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
-          <input placeholder="ENDPOINT" name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required/>
-          <select placeholder="PRIORITY"
-            onChange={(e) => this.setState({ selectedPriority: e.target.value })}>
-            <option disabled>PRIORITY</option>
-            <option>1</option>
-            <option>2</option>
-            <option>3</option>
-          </select>
-          <select placeholder="STRATEGY"
-            onChange={(e) => this.setState({ selectedStrategy: e.target.value })}>
-            <option>STRATEGY</option>
-            <option>DNS</option>
-            <option >ROUND-ROBIN</option>
-            <option>BY PRIORITY</option>
-          </select>
-          <button type="submit">create</button>
-        </form>
+        <Form onSubmit={this.handleSubmit}>
+          <InputGroup className="input">
+            <Form.Control placeholder="SERVICE NAME" name="name" type="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
+          </InputGroup>
+          <InputGroup className="input"> 
+            <InputGroup.Text>/</InputGroup.Text>
+            <FormControl id="inlineFormInputGroup" placeholder="ENDPOINT" name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required />
+          </InputGroup>
+          <InputGroup className="input">
+            <Form.Control as="select" custom
+              onChange={(e) => this.setState({ selectedPriority: e.target.value })}>
+              <option disabled>PRIORITY</option>
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+            </Form.Control>
+          </InputGroup>
+          <InputGroup className="input">
+            <Form.Control as="select" custom
+              onChange={(e) => this.setState({ selectedStrategy: e.target.value })}>
+              <option>STRATEGY</option>
+              <option>DNS</option>
+              <option >ROUND-ROBIN</option>
+              <option>BY PRIORITY</option>
+            </Form.Control>
+            <InputGroup>
+              {this.strategySelected(this.state.selectedStrategy)}
+            </InputGroup>
+          </InputGroup>
+          <Button className="submit-button"type="submit">CREATE</Button>
+        </Form>
       </div>
     );
   }
@@ -57,32 +76,29 @@ class NewServiceModal extends Component {
       return ;
     if (selectedType === "DNS")
       return (
-        <form>
-          <input placeholder="DNS SERVER" onChange={(e) => this.setState({ server: e.target.value })} />
-        </form>
+        <FormControl className="input-new" id="inlineFormInputGroup" placeholder="DNS SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
       );
     if (selectedType === "ROUND-ROBIN")
       return (
-        <form>
-          <input placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} />
-          <input placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} />
-        </form>
+        <Form>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} required/>
+        </Form>
       );
     if (selectedType === "BY PRIORITY")
       return (
-        <form>
-          <input placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} />
-          <input placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} />
-          <input placeholder="PRIORITY" onChange={(e) => this.setState({ by_priority: e.target.value })} />
-        </form>
+        <Form>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} required/>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PRIORITY" onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
+        </Form>
       );  
   }
 
   handleSubmit(event) {
     const {name, endpoint, selectedPriority, selectedStrategy, server, port, by_priority} = this.state;
-    console.log(selectedStrategy)
     if (selectedStrategy === '') {
-      {console.log("STRATEGY NOT SELECTED, TRY AGAIN")}
+      {alert("STRATEGY NOT SELECTED, TRY AGAIN")}
     }
     if (selectedStrategy === "DNS") {
       axios.post('http://localhost:3333/services', { //to be defined
@@ -114,19 +130,28 @@ class NewServiceModal extends Component {
     }
   }
 
-  render(){
-    return (
-      <Fragment>
-        <section >
-          {this.renderPrioritySelector()}
-          <div>
-            {this.strategySelected(this.state.selectedStrategy)}
-          </div>
-        </section>
-      </Fragment>
-    );
+  closeModal() {
+    return this.props.callbackParent(false)
   }
 
-}
+  render(){
+    return (
+        <Modal show={true} 
+          size="lg"
+          aria-labelledby="contained-modal-title-vcenter"
+          centered
+        >
+          <Modal.Header> 
+            <Modal.Title  id="contained-modal-title-vcenter">
+              <span className="title">NEW SERVICE</span>
+            </Modal.Title>
+            <Button variant="light" onClick={this.closeModal} > X </Button>
+          </Modal.Header>
+          <section >
+            {this.renderPrioritySelector()}
+          </section>
+        </Modal>
+    );
+  }}
 
 export default NewServiceModal;

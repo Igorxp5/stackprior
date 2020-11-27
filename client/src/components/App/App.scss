@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+
+#home-page {
+  font-family: 'Anton', sans-serif;
+  max-height: 100% !important;
+
+}
+
+.btn-app {
+  font-family: 'Anton', sans-serif; 
+  background-color: #20EE9F !important;
+  border-color: #20EE9F !important;
+  color: aliceblue;
+  width: 250px !important;
+  height: 90px !important;
+  font-size: 30px !important;
+  position: absolute !important;
+  right: 16px !important;
+  text-transform: uppercase;
+}
+
+.items-top {
+  margin-top: 15px !important;
+}
+
+.items-listed {
+  width: 100% !important;
+}
+
+
+.title {
+  color: #52b2d2;
+}

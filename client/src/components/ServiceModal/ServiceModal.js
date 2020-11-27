@@ -1,6 +1,11 @@
-import React, { Component, Fragment} from "react";
+import React, { Component,} from "react";
 
 import axios from 'axios';
+
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Modal, Button, Form, InputGroup } from 'react-bootstrap';
+
+import './ServiceModal.scss';
 
 class ServiceModal extends Component {
 
@@ -18,12 +23,12 @@ class ServiceModal extends Component {
 
     this.renderStrategy = this.renderStrategy.bind(this);
     this.checkStrategy = this.checkStrategy.bind(this);
+    this.closeModal = this.closeModal.bind(this);
   }
 
   checkStrategy() {
     if (this.state.strategy === "ROUND-ROBIN") {
       this.setState({port: this.props.service.port})
-      console.log(this.props.service.port)
     } else if (this.state.strategy === "BY PRIORITY") {
       this.setState({port: this.props.service.port});
       this.setState({by_priority: this.props.service.by_priority})
@@ -32,52 +37,65 @@ class ServiceModal extends Component {
 
   renderServiceEdit() {
     return (
-      <div>
-        <form onSubmit={this.handleSubmit}>
-          <input placeholder={this.state.name} name="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
-          <input placeholder={this.state.endpoint} name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required/>
-          <select defaultValue={this.state.priority}
-            onChange={(e) => this.setState({ selectedPriority: e.target.value })}>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-          </select>
-          <div>
-            {this.renderStrategy()}
-          </div>
-          <button type="submit">create</button>
-        </form>
-      </div>
+        <Form onSubmit={this.handleSubmit}>
+          <InputGroup className="input">
+            <Form.Control placeholder={this.state.name} name="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
+          </InputGroup>
+          <InputGroup className="input">
+            <Form.Control placeholder={this.state.endpoint} name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required/>
+          </InputGroup>
+          <InputGroup className="input">
+            <Form.Control as="select" custom defaultValue={this.state.priority}
+              onChange={(e) => this.setState({ priority: e.target.value })}>
+              <option disabled>PRIORITY</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </Form.Control>
+          </InputGroup>
+          <InputGroup className="input">
+            <Form.Control as="select" custom defaultValue={this.state.strategy}
+              onChange={(e) => this.setState({ strategy: e.target.value })}>
+              <option disabled>STRATEGY</option>
+              <option>DNS</option>
+              <option >ROUND-ROBIN</option>
+              <option>BY PRIORITY</option>
+            </Form.Control>
+            <InputGroup>
+              {this.renderStrategy(this.state.strategy)}
+            </InputGroup>
+          </InputGroup>
+          <button className="submit-button"type="submit">Edit</button>
+        </Form>
     );
   }
+
 
   renderStrategy() {
     if (this.state.strategy === "DNS") {
       return(
-        <input placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
+        <Form.Control className="input-new" placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
       )
     } else if (this.state.strategy === "ROUND-ROBIN") {
       return (
-        <form>
-          <input placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
-          <input placeholder={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
-        </form>
+        <Form>
+          <Form.Control className="input-new" placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
+          <Form.Control className="input-new" placeholder={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
+        </Form>
       );
     } else if (this.state.strategy === "BY PRIORITY") {
       return (
-        <form>
-          <input placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
-          <input placeholder={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
-          <input placeholder={this.state.by_priority} onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
-        </form>
+        <Form>
+          <Form.Control className="input-new" placeholder={this.state.server} onChange={(e) => this.setState({ server: e.target.value })} required/>
+          <Form.Control className="input-new" placeholder={this.state.port} onChange={(e) => this.setState({ port: e.target.value })} required/>
+          <Form.Control className="input-new" placeholder={this.state.by_priority} onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
+        </Form>
       );
     }
   }
 
   componentDidMount() {
-    this.checkStrategy()
-    console.log(this.state.name)
-    console.log(this.state.priority)
+    this.checkStrategy();
   }
 
   handleSubmit(event) {
@@ -112,18 +130,30 @@ class ServiceModal extends Component {
     }
   }
 
+  closeModal() {
+    return this.props.callbackParent(false);
+  }
+
   render(){
     return (
-      <Fragment>
-        <div>
-          <h1>{this.state.name}</h1>
-        <section >
-          {this.renderServiceEdit()}
-          <div>
-          </div>
-        </section>
-        </div>
-      </Fragment>
+      <Modal show={true}
+        size="lg"
+        aria-labelledby="contained-modal-title-vcenter"
+        centered
+        >
+          <Modal.Header> 
+            <Modal.Title  id="contained-modal-title-vcenter">
+              <span className="title">NEW SERVICE</span>
+            </Modal.Title>
+            <Button variant="light" onClick={this.closeModal} > X </Button>
+          </Modal.Header>
+          
+          <section >
+            {this.renderServiceEdit()}
+            <div>
+            </div>
+          </section>
+        </Modal>
     );
   }
 
