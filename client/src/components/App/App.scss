@@ -1,19 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-
 #home-page {
-  font-family: 'Anton', sans-serif;
+  font-family: "SWIS721 BLKCN", sans-serif;
   max-height: 100% !important;
 
 }
 
 .btn-app {
-  font-family: 'Anton', sans-serif; 
+  font-family: "SWIS721 BLKCN", sans-serif; 
   background-color: #20EE9F !important;
   border-color: #20EE9F !important;
   color: aliceblue;
-  width: 250px !important;
-  height: 90px !important;
-  font-size: 30px !important;
+  font-size: 25px !important;
+  padding: 10px 20px;
   position: absolute !important;
   right: 16px !important;
   text-transform: uppercase;
@@ -30,4 +27,6 @@
 
 .title {
   color: #52b2d2;
+  font-family: "SWIS721 BLKCN";
+  font-size: 30px;
 }

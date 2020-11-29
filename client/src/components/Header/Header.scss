@@ -1,5 +1,6 @@
 .navbar {
-  background-image: linear-gradient(to bottom right, #a3e7dc ,#20EE9F);
+  background: rgb(132,250,176);
+  background: linear-gradient(45deg, rgba(132,250,176,1) 20%, rgba(143,211,244,1) 100%);
   position: relative;
   padding: 0 20px;
   height: 90px;
@@ -16,6 +17,7 @@
   text-transform: uppercase;
   text-decoration: none;
   border: 3px solid transparent;
+  text-shadow: 0px 1px 5px rgba(0, 0, 0, 0.1);
 
   &:hover {
     text-decoration: none;

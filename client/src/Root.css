@@ -1,11 +1,8 @@
-@import url('https://fonts.googleapis.com/css?family=Roboto');
-@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-
 body {
   background-color: #e6e6e6;
   margin: 0;
   padding: 0;
-  font-family: 'Anton', sans-serif, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: "SWIS721 BLKCN", sans-serif, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -16,7 +13,7 @@ body {
   background-color: #e6e6e6;
   margin: 0;
   color: #1b1a20;
-  font-family: 'Anton', sans-serif;
+  font-family: "SWIS721 BLKCN", sans-serif;
 }
 
 main {

@@ -80,14 +80,14 @@ class NewServiceModal extends Component {
       );
     if (selectedType === "ROUND-ROBIN")
       return (
-        <Form>
+        <Form className="server-form">
           <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
           <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} required/>
         </Form>
       );
     if (selectedType === "BY PRIORITY")
       return (
-        <Form>
+        <Form className="server-form">
           <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
           <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} required/>
           <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PRIORITY" onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
