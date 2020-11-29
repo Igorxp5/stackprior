@@ -4,8 +4,8 @@ import docker
 from flask import Flask
 from pymongo import MongoClient 
 
-from routes import services, metrics
-from configurer import NGinxConfigurer
+from api.routes import services, metrics
+from api.configurer import NGinxConfig
 
 NGINX_CONTAINER_NAME = os.environ.get('NGINX_CONTAINER_NAME', 'nginx')
 NGINX_CONFIG_FILE = os.environ.get('NGINX_CONFIG_FILE')
@@ -32,7 +32,7 @@ assert DB_HOST and DB_USER and DB_PASS, \
 mongo_client = MongoClient(f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/')
 mongodb = mongo_client[DB_NAME]
 
-configurer = NGinxConfigurer.from_config_file(NGINX_CONFIG_FILE)
+configurer = NGinxConfig.from_config_file(NGINX_CONFIG_FILE)
 
 docker_client = docker.DockerClient(base_url=f'unix://{DOCKER_UNIX_SOCKET}')
 
@@ -44,10 +44,9 @@ except docker.errors.NotFound:
 app = Flask(__name__)
 
 # Routes
-route_services = app.route('/services/<service>')(services(nginx_container, configurer))
-app.route('/services/')(route_services)
+route_services = app.route('/services/<service>', methods= ['DELETE', 'GET', 'PUT'])(services(nginx_container, configurer, app))
+app.route('/services/', methods= ["POST", 'GET', ])(route_services)
 app.route('/metrics/')(metrics(mongodb))
-
 
 if __name__ == '__main__':
     app.run(host=HOST, port=PORT)

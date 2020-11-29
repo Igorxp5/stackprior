@@ -264,19 +264,19 @@ class RoutePriorities:
     
     def _start_observe_file_changes(self):
         observer = Observer()
-        # event_handler = RoutePriorities.ObserverEventHandler(self)
-        # observer.schedule(event_handler, path=self._config_file)
-        # observer.start()
+        event_handler = RoutePriorities.ObserverEventHandler(self, self._config_file)
+        observer.schedule(event_handler, path=self._config_file)
+        observer.start()
     
     class ObserverEventHandler(FileModifiedEvent):
         def __init__(self, route_priorities, src_path):
             self._route_priorities = route_priorities
             super().__init__(src_path)
 
-        def on_modified(self, event):
+        def dispatch(self,event):
             logging.info(f'Config files has modified, updating route priorities...')
             self._route_priorities._load_config_file()
-
+            
 
 def start_server(host, port, forward_host, forward_port, memory_threshold, cpu_threshold, 
                  route_priorities=None):

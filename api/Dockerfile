@@ -6,4 +6,6 @@ WORKDIR /api
 
 RUN pip install -r requirements.txt
 
+ENV PYTHONPATH=/
+
 CMD ["python", "__init__.py"]

@@ -179,14 +179,32 @@ class NGinxConfig:
 
     def add_upstream(self, upstream):
         return self._http_directive.add_upstream(upstream)
+
+    def get_all_upstreams(self):
+        return self._http_directive.get_all_upstreams()
+
+    def get_upstream(self, name):
+        return self._http_directive.get_upstream(name)
     
     def remove_upstream(self, name):
         return self._http_directive.remove_upstream(name)
     
+    
+    def get_endpoint(self, name_upstream):
+        return self._http_directive.get_endpoint(name_upstream)
+    
+    # TODO tirar depois
+    def get_location(self, endpoint):
+        return self._http_directive.get_location(endpoint).upstream_name
+    # tirar tbm
+    def remove_location(self, endpoint):
+        return self._http_directive.remove_location(endpoint)
+        
     def add_route(self, endpoint, upstream_name, *args):
         return self._http_directive.add_route(endpoint, upstream_name, *args)
     
     def remove_route(self, endpoint):
+        raise RuntimeError(repr(endpoint))
         return self._http_directive.remove_route(endpoint)
     
     def update_route(self, endpoint, upstream_name, *args):
@@ -223,9 +241,43 @@ class HttpDirective(Group):
     
     def remove_upstream(self, name):
         upstream = next((g for g in self._subgroups if isinstance(g, UpstreamDirective) and  g.name == name), None)
-        assert upstream, 'upstrea {name} does not exist'
+        assert upstream, 'upstream {name} does not exist'
         self._subgroups.remove(upstream)
-    
+
+    #in progress
+    def get_all_upstreams(self):
+        upstreams = [g for g in self._subgroups if isinstance(g, UpstreamDirective)]
+        return upstreams
+
+    def get_upstream(self, name):
+        upstreams = self.get_all_upstreams()
+        upstream = None
+        for i in upstreams:
+            if i.name == name:
+                upstream = i
+        return upstream
+        
+    def get_endpoint(self, name_upstream):
+        endpoints = self._server_directive.get_endpoints()
+        endpoint = None
+        for e in endpoints:
+            if endpoints[e] == name_upstream:
+                endpoint = e
+        return endpoint
+
+    #serve pra nada
+    def get_location(self, endpoint):
+        locations = self._server_directive.get_locations()
+        location = None
+        for l in locations:
+            if l.endpoint == endpoint:
+                location = l
+        return location
+
+
+    def get_endpoints(self):
+        return self._server_directive.get_endpoints()
+
     def add_route(self, endpoint, upstream_name, *args):
         return self._server_directive.add_route(endpoint, upstream_name, *args)
     
@@ -261,19 +313,23 @@ class UpstreamDirective(Group):
         self.name = name
         self._properties[0] = name
     
-    def add_server(self, name, *args, **kwargs):
-        assert not self.get_server(name), 'there is already a server with that name'
-        return self.add_parameter('server', name, *args, **kwargs)
+    def add_server(self, host, *args, **kwargs):
+        assert not self.get_server(host), 'there is already a server with that host'
+        return self.add_parameter('server', host, *args, **kwargs)
     
-    def remove_server(self, name):
-        server_parameter = self.get_server(name)
+    def remove_server(self, host):
+        server_parameter = self.get_server(host)
         assert server_parameter, 'server does not exist'
         self._parameters.remove(server_parameter)
         return server_parameter
 
-    def get_server(self, name):
-        return next((p for p in self._parameters if p.args[0] == name), None)
-    
+    def get_server(self, host):
+        return next((p for p in self._parameters if p.args[0] == host), None)
+
+    def get_all_servers(self):
+        return [p.args[1] for p in self._parameters]
+
+        
     @staticmethod
     def cast(group):
         group.__class__ = UpstreamDirective
@@ -284,7 +340,7 @@ class UpstreamDirective(Group):
 @Group.group_caster('server')
 class ServerDirective(Group):
     def __init__(self, routes=None, server_name=None, port=80):
-        assert not routes or isinstance(parameters, Iterable), 'routes must be iterable'
+        assert not routes or isinstance(routes, Iterable), 'routes must be iterable'
         assert not routes or all(isinstance(r, ServerRoute) for r in routes), \
             'expecting ServerRoute object in routes'
         assert isinstance(port, int), 'port must be integer'
@@ -295,6 +351,19 @@ class ServerDirective(Group):
         
         if server_name:
             self.add_parameter('server_name', server_name)
+
+    def get_endpoints(self):
+        server_routes = self._subgroups
+        endpoints = {}
+        for server_route in server_routes:
+            if server_route.endpoint:
+                endpoints[server_route.endpoint] = server_route.upstream_name
+        del endpoints['/']
+        return endpoints
+    
+    def get_locations(self):
+        location = self._subgroups
+        return location
 
     def add_route(self, endpoint, upstream_name, *args, https=False):
         server_route = ServerRoute(endpoint, upstream_name, args, https)
@@ -354,7 +423,8 @@ class ServerRoute(Group):
     @staticmethod
     def cast(group):
         set_upstream_parameter = group.get_parameter('set', '$upstream')
-        upstream_name = set_upstream_parameter and set_upstream_parameter.args[1]
+        # FIXME: shouldn't be args[2]
+        upstream_name = set_upstream_parameter and set_upstream_parameter.args[2]
         proxy_pass_parameter = group.get_parameter('proxy_pass')
         https = proxy_pass_parameter and proxy_pass_parameter.args[0].startswith('https')
         proxy_redirect_parameter = group.get_parameter('proxy_redirect', '/')
