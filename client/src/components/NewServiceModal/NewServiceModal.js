@@ -17,13 +17,16 @@ class NewServiceModal extends Component {
       selectedStrategy: '',
       name: '',
       endpoint: '',
-      server: '',
-      port: '',
-      by_priority: ''
+      sub_endpoint: '',
+      servers: [],
+      serverdns: '',
+      by_priority: '',
+      show: false
     }
 
     this.handleSubmit = this.handleSubmit.bind(this);
     this.closeModal = this.closeModal.bind(this);
+    this.strategySelected = this.strategySelected.bind(this);
   }
 
   handleChange(event){
@@ -31,6 +34,18 @@ class NewServiceModal extends Component {
         [event.target.name]: event.target.value
     })
 
+  }
+
+  handleClick(e, type) {
+    if (type === "ROUND") {
+      const result = this.state.serverdns.split(":")
+      this.state.servers.push({"host": result[0], "port": result[1]})
+      } 
+    else if (type === "PRIORITY") {
+      const result = this.state.serverdns.split(":")
+      this.state.servers.push({"host": result[0], "port": result[1], "weight": this.state.by_priority})
+      }
+    alert("Adicionado com sucesso")
   }
 
   renderPrioritySelector() {
@@ -41,17 +56,13 @@ class NewServiceModal extends Component {
             <Form.Control placeholder="SERVICE NAME" name="name" type="name" onChange={(e) => this.setState({ name: e.target.value })} required/>
           </InputGroup>
           <InputGroup className="input"> 
-            <InputGroup.Text>/</InputGroup.Text>
-            <FormControl id="inlineFormInputGroup" placeholder="ENDPOINT" name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required />
+            <FormControl id="inlineFormInputGroup" placeholder="/ENDPOINT" name="endpoint" onChange={(e) => this.setState({ endpoint: e.target.value })} required />
+          </InputGroup>
+          <InputGroup className="input"> 
+            <FormControl id="inlineFormInputGroup" placeholder="/SUB ENDPOINT" name="endpoint" onChange={(e) => this.setState({ sub_endpoint: e.target.value })} required />
           </InputGroup>
           <InputGroup className="input">
-            <Form.Control as="select" custom
-              onChange={(e) => this.setState({ selectedPriority: e.target.value })}>
-              <option disabled>PRIORITY</option>
-              <option>1</option>
-              <option>2</option>
-              <option>3</option>
-            </Form.Control>
+            <FormControl id="inlineFormInputGroup" placeholder="PRIORITY" name="priority" onChange={(e) => this.setState({ selectedPriority: e.target.value })} required />
           </InputGroup>
           <InputGroup className="input">
             <Form.Control as="select" custom
@@ -65,67 +76,72 @@ class NewServiceModal extends Component {
               {this.strategySelected(this.state.selectedStrategy)}
             </InputGroup>
           </InputGroup>
-          <Button className="submit-button"type="submit">CREATE</Button>
+            <Button className="submit-button"type="submit">CREATE</Button>
         </Form>
       </div>
     );
   }
 
-  strategySelected(selectedType){
-    if (selectedType === "STRATEGY")
-      return ;
+  strategySelected(selectedType) {
     if (selectedType === "DNS")
       return (
-        <FormControl className="input-new" id="inlineFormInputGroup" placeholder="DNS SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
+        <Form className="server-form">
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ serverdns: e.target.value })} required/>
+        </Form>
       );
     if (selectedType === "ROUND-ROBIN")
       return (
         <Form className="server-form">
-          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
-          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} required/>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER:PORT" onChange={(e) => this.setState({ serverdns: e.target.value })} required/>
+          <Button variant="light" onClick={() => this.handleClick(this.state.selectedStrategy, "ROUND")} > + </Button>
         </Form>
+        
       );
     if (selectedType === "BY PRIORITY")
       return (
         <Form className="server-form">
-          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER" onChange={(e) => this.setState({ server: e.target.value })} required/>
-          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PORT" onChange={(e) => this.setState({ port: e.target.value })} required/>
+          <FormControl className="input-new" id="inlineFormInputGroup" placeholder="SERVER:PORT" onChange={(e) => this.setState({ serverdns: e.target.value })} required/>
           <FormControl className="input-new" id="inlineFormInputGroup" placeholder="PRIORITY" onChange={(e) => this.setState({ by_priority: e.target.value })} required/>
+          <Button variant="light" onClick={() => this.handleClick(this.state.selectedStrategy, "PRIORITY")} > + </Button>
         </Form>
       );  
   }
 
   handleSubmit(event) {
-    const {name, endpoint, selectedPriority, selectedStrategy, server, port, by_priority} = this.state;
+    if (this.state.serverdns === '') {
+      return alert("Server empty, service not created")
+    }
+    const {name, endpoint, sub_endpoint, selectedPriority, selectedStrategy, servers} = this.state;
     if (selectedStrategy === '') {
       {alert("STRATEGY NOT SELECTED, TRY AGAIN")}
     }
     if (selectedStrategy === "DNS") {
+      this.state.servers.push({"host": this.state.serverdns})
       axios.post('http://localhost:3333/services', { //to be defined
         name: name,
         endpoint: endpoint,
+        sub_endpoint: sub_endpoint,
         selectedPriority: selectedPriority,
         selectedStrategy: selectedStrategy,
-        server: server
+        servers: servers
       }).then( response => console.log("response", response.data))
     } else if (selectedStrategy === "ROUND-ROBIN") {
       axios.post('http://localhost:3333/services', { //to be defined
         name: name,
         endpoint: endpoint,
+        sub_endpoint: sub_endpoint,
         selectedPriority: selectedPriority,
         selectedStrategy: selectedStrategy,
-        server: server,
-        port: port
+        servers: servers
       }).then( response => console.log("response", response.data))
     } else if (selectedStrategy === "BY PRIORITY") {
       axios.post('http://localhost:3333/services', { //to be defined
         name: name,
         endpoint: endpoint,
+        sub_endpoint: sub_endpoint,
         selectedPriority: selectedPriority,
         selectedStrategy: selectedStrategy,
-        server: server,
-        port: port,
-        by_priority: by_priority
+        servers: servers
       }).then( response => console.log("response", response.data))
     }
   }
@@ -134,7 +150,7 @@ class NewServiceModal extends Component {
     return this.props.callbackParent(false)
   }
 
-  render(){
+  render () {
     return (
         <Modal show={true} 
           size="lg"
@@ -149,6 +165,7 @@ class NewServiceModal extends Component {
           </Modal.Header>
           <section >
             {this.renderPrioritySelector()}
+            
           </section>
         </Modal>
     );
