@@ -60,10 +60,10 @@ except docker.errors.NotFound:
 app = Flask(__name__)
 
 # Routes
-route_services = app.route('/services/<service>', methods= ['DELETE', 'GET', 'PUT'])(
+route_services = app.route('/services/<service>', methods= ['DELETE', 'GET', 'PUT', 'OPTIONS'])(
     services(nginx_container, configurer, app, NGINX_CONFIG_FILE, MQUEUE_CONFIG_FILE)
 )
-app.route('/services/', methods= ["POST", 'GET'])(route_services)
+app.route('/services/', methods= ["POST", 'GET', 'OPTIONS'])(route_services)
 # app.route('/metrics/')(metrics(mongodb))
 
 if __name__ == '__main__':

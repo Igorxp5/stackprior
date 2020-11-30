@@ -3,14 +3,14 @@
   font-family: "SWIS721 BLKCN", sans-serif;
   height: 200px;
   position: relative;
-  background-color:  #a3e7d6;
+  background: rgb(132,250,176);
+  background: linear-gradient(45deg, rgba(132,250,176,1) 20%, rgba(143,211,244,1) 100%);
   text-align: center;
   box-sizing: border-box;
   margin-bottom: 7px;
   border: 1px solid transparent;
   cursor: pointer;
   border-radius: 7px ;
-  background-image: linear-gradient(to bottom right,#20EE9F, #a3e7dc );
 
   &:hover {
     border: 1px solid #eee;

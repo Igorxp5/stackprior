@@ -35,13 +35,15 @@ class Items extends Component{
     if (type === "prior") {
       axios.get("http://localhost:3333/servicesOrder") // to be defined
     .then(response => { 
-      const services = response.data;
+      const responseServices = response.data;
+      let services;
       this.setState({ services });
     })
     } else {
-      axios.get("http://localhost:3333/services") // to be defined
+      let servicesUrl = window.location.protocol + '//' + window.location.hostname + ':8080/services';
+      axios.get(servicesUrl) // to be defined
       .then(response => { 
-        const services = response.data;
+        const services = response.data.data;
         this.setState({ services });
       })
     }

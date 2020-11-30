@@ -14,7 +14,7 @@ class ServiceModal extends Component {
     this.state = {
       name: this.props.service.name,
       endpoint: this.props.service.endpoint,
-      sub_endpoint: this.props.service.sub_endpoint,
+      sub_endpoint: this.props.service['sub-endpoint'],
       priority: this.props.service.priority,
       strategy: this.props.service.strategy,
       servers: this.props.service.servers,
@@ -58,9 +58,9 @@ class ServiceModal extends Component {
             <Form.Control as="select" custom defaultValue={this.state.strategy}
               onChange={(e) => this.setState({ temp: e.target.value })}>
               <option disabled>STRATEGY</option>
-              <option>DNS</option>
+              {/* <option>DNS</option> */}
               <option>ROUND-ROBIN</option>
-              <option>BY PRIORITY</option>
+              {/* <option>BY PRIORITY</option> */}
             </Form.Control>
             <InputGroup>
               {this.checkQnt()}

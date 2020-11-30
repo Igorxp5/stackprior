@@ -1,7 +1,9 @@
 import os
 import time
+import random
 import requests
 import subprocess
+
 
 from threading import Thread
 from queue import Queue
@@ -11,15 +13,15 @@ from util import start_project
 
 def test_drop_request():
     env = {'DB_USER': 'mongo', 'DB_PASS': 'mongo', 
-           'MEMORY_THRESHOLD': '50', 'CPU_THRESHOLD': '60'}
-    with start_project(env) as process:
+           'MEMORY_THRESHOLD': '50', 'CPU_THRESHOLD': '50'}
+    with start_project(env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
         print('Waiting 30 seconds to the platform be available...')
         time.sleep(30)
 
         def _request(responses):
             response = None
             try:
-                response = requests.get('http://127.0.0.1/chat', timeout=1)
+                response = requests.get('http://localhost/products', timeout=5)
             except Exception:
                 print('Something wrong happened during the request!')
             else:
@@ -28,8 +30,8 @@ def test_drop_request():
         responses_queue = Queue()
         threads = []
         
-        print('Sending 50 requests...')
-        for _ in range(50):
+        print('Sending 10 requests...')
+        for _ in range(10):
             thread = Thread(target=_request, args=(responses_queue,))
             threads.append(thread)
             thread.start()

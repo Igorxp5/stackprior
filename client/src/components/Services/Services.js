@@ -17,7 +17,7 @@ const ServicesCard = ({service}) => {
     <>
       <Col className="card-item" onClick={() => setModalShow(true) }>
         <h2 className="card-item__name">{service.name}</h2>
-        <p className="card-item__endpoint">/{service.endpoint}</p>
+        <p className="card-item__endpoint">{service.endpoint}</p>
         <div className="card-item__priority">
           <p>{service.priority}</p>
         </div>

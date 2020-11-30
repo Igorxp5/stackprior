@@ -39,11 +39,11 @@ class NewServiceModal extends Component {
   handleClick(e, type) {
     if (type === "ROUND") {
       const result = this.state.serverdns.split(":")
-      this.state.servers.push({"host": result[0], "port": result[1]})
+      this.state.servers.push({"host": result[0], "port": parseInt(result[1])})
       } 
     else if (type === "PRIORITY") {
       const result = this.state.serverdns.split(":")
-      this.state.servers.push({"host": result[0], "port": result[1], "weight": this.state.by_priority})
+      this.state.servers.push({"host": result[0], "port": parseInt(result[1]), "weight": parseInt(this.state.by_priority)})
       }
     alert("Adicionado com sucesso")
   }
@@ -68,9 +68,9 @@ class NewServiceModal extends Component {
             <Form.Control as="select" custom
               onChange={(e) => this.setState({ selectedStrategy: e.target.value })}>
               <option>STRATEGY</option>
-              <option>DNS</option>
+              {/* <option>DNS</option> */}
               <option >ROUND-ROBIN</option>
-              <option>BY PRIORITY</option>
+              {/* <option>BY PRIORITY</option> */}
             </Form.Control>
             <InputGroup>
               {this.strategySelected(this.state.selectedStrategy)}
@@ -108,41 +108,38 @@ class NewServiceModal extends Component {
   }
 
   handleSubmit(event) {
+    //event.preventDefault();
     if (this.state.serverdns === '') {
       return alert("Server empty, service not created")
+    }
+    if (this.state.servers.length == 0 ) {
+      return alert('Add a server/port');
     }
     const {name, endpoint, sub_endpoint, selectedPriority, selectedStrategy, servers} = this.state;
     if (selectedStrategy === '') {
       {alert("STRATEGY NOT SELECTED, TRY AGAIN")}
     }
+    let strategy = selectedStrategy.toLowerCase();
+    strategy = strategy == 'by priority' ? 'priority' : strategy;
+    
+    let serviceData = {
+        "name": name,
+        "endpoint": '/' + endpoint,
+        "sub-endpoint": '/' + sub_endpoint,
+        "priority": parseInt(selectedPriority),
+        "strategy": strategy,
+        "servers": servers
+    }
+    
+    let servicesUrl = window.location.protocol + '//' + window.location.hostname + ':8080/services/';
+    console.log(servicesUrl);
     if (selectedStrategy === "DNS") {
       this.state.servers.push({"host": this.state.serverdns})
-      axios.post('http://localhost:3333/services', { //to be defined
-        name: name,
-        endpoint: endpoint,
-        sub_endpoint: sub_endpoint,
-        selectedPriority: selectedPriority,
-        selectedStrategy: selectedStrategy,
-        servers: servers
-      }).then( response => console.log("response", response.data))
+      axios.post(servicesUrl, serviceData).then( response => console.log("response", response.status))
     } else if (selectedStrategy === "ROUND-ROBIN") {
-      axios.post('http://localhost:3333/services', { //to be defined
-        name: name,
-        endpoint: endpoint,
-        sub_endpoint: sub_endpoint,
-        selectedPriority: selectedPriority,
-        selectedStrategy: selectedStrategy,
-        servers: servers
-      }).then( response => console.log("response", response.data))
+      axios.post(servicesUrl, serviceData).then( response => console.log("response", response.status))
     } else if (selectedStrategy === "BY PRIORITY") {
-      axios.post('http://localhost:3333/services', { //to be defined
-        name: name,
-        endpoint: endpoint,
-        sub_endpoint: sub_endpoint,
-        selectedPriority: selectedPriority,
-        selectedStrategy: selectedStrategy,
-        servers: servers
-      }).then( response => console.log("response", response.data))
+      axios.post(servicesUrl, serviceData).then( response => console.log("response", response.status))
     }
   }
 

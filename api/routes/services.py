@@ -83,21 +83,33 @@ def services(nginx_container_, configurer_, app_, nginx_config_file, mqueue_conf
 def _services(service=None):
 
     if request.method == "POST":
-        return create()
+        response, status_code = create()
 
-    if request.method == "DELETE":
-        return delete(service)
+    elif request.method == "DELETE":
+        response, status_code = delete(service)
 
-    if request.method == "GET" and service:
-        return get(service)
+    elif request.method == "GET" and service:
+        response, status_code = get(service)
 
-    if request.method == "GET" and not service:
-        return index()
+    elif request.method == "GET" and not service:
+        response, status_code = index()
     
-    if request.method == "PUT" and service:
-        return update(service)
+    elif request.method == "PUT" and service:
+        response, status_code = update(service)
+    
+    elif request.method == "OPTIONS":
+        response, status_code = jsonify(), 200
+    
+    else:
+        response, status_code = jsonify(error='invalid request'), 400
 
-    return {'error': 'invalid request'}, 400
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Headers', 'x-csrf-token')
+    response.headers.add('Access-Control-Allow-Methods',
+                        'GET, POST, OPTIONS, PUT, PATCH, DELETE')
+
+    return response, status_code
 
 
 def create():
@@ -107,12 +119,12 @@ def create():
 
     #Name of service can't be the same
     if configurer.get_upstream(name):
-        return {"error:" : "The name of upstream is already in use"}, 400
+        return jsonify(sucess='The name of upstream is already in use'), 400
 
     #Endpoint can't be the same
     for e in get_priorities(PATH_MQUEUE):
         if e == endpoint:
-            return {"error:" : "Endpoint already exists"}, 400
+            return jsonify(error="Endpoint already exists"), 400
 
     configurer.set_resolver('127.0.0.11', valid='30s')
     upstream = UpstreamDirective(name)
@@ -147,12 +159,12 @@ def create():
 
     restart_nginx()
 
-    return {"sucess" : "service created"}, 201
+    return jsonify(sucess='service created'), 201
 
 def delete(service):
     
     if not configurer.get_upstream(service):
-        return {"error:" : "This service doesn't exist"}, 404
+        return jsonify(error="This service doesn't exist"), 404
     else:
         endpoint = configurer.get_endpoint(service)
 
@@ -163,7 +175,7 @@ def delete(service):
 
         configurer.save(PATH_NGINX)
         restart_nginx()
-        return {"sucess" : "service deleted"}, 200
+        return jsonify(sucess='service deleted'), 200
 
 
 def index():
@@ -172,7 +184,7 @@ def index():
     for upstream in upstreams:
         dic = making_get(upstream)
         data.append(dic)
-    return  {'data': data}
+    return  jsonify(data=data), 200
 
 
 def get(service):
@@ -180,9 +192,9 @@ def get(service):
     if upstream:
         dic = making_get(upstream)
     else:
-        return {"error" : "This service doesn't found"}, 404
+        return jsonify(error='This service doesn\'t exist'), 404
     
-    return dic
+    return jsonify(**dic)
 
 
 def update(service):
@@ -194,7 +206,7 @@ def update(service):
     #DELETING
 
     if not configurer.get_upstream(service):
-        return {"error:" : "This service doesn't exist"}, 404
+        return jsonify(error='This service doesn\'t exist'), 404
     else:
         old_endpoint = configurer.get_endpoint(service)
 
@@ -208,13 +220,13 @@ def update(service):
     #Name of service can't be the same
     if configurer.get_upstream(name):
         set_priority(PATH_MQUEUE, endpoint, priority)
-        return {"error:" : "The name of upstream is already in use"}, 400
+        return jsonify(error='The name of upstream is already in use'), 400
 
     #Endpoint can't be the same
     for e in get_priorities(PATH_MQUEUE):
         if e == endpoint:
             set_priority(PATH_MQUEUE, endpoint, priority)
-            return {"error:" : "Endpoint already exists"}, 400
+            return jsonify(error='Endpoint already exists'), 400
 
 
     #CREATING
@@ -252,4 +264,4 @@ def update(service):
 
     restart_nginx()
 
-    return {"sucess" : "service updated"}, 200
+    return jsonify(success='service updated'), 200
