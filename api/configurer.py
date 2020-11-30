@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 
 GROUP_REGEX = r'(\S+) ?(.*?) ?\{([^\{\}]*)\}'
-PARAMETER_REGEX = r'(\S+?)( .+)?;'
+PARAMETER_REGEX = r'(\S+?)( (.+))?;'
 
 
 class ParserError(Exception):
@@ -112,7 +112,7 @@ class Group:
             parameters = []
             raw_parameters = re.finditer(PARAMETER_REGEX, content)
             for match_parameter in raw_parameters:
-                name, args = match_parameter.groups()
+                name, _, args = match_parameter.groups()
                 args = re.split(r'\s', args)
                 kwargs = {}
                 for arg in args:
@@ -170,6 +170,7 @@ class NGinxConfig:
         if not self._http_directive:
             self._http_directive = HttpDirective(server_name, server_port)
             self._groups['http'] = self._http_directive
+        self._groups['events'] = Group('events')
 
     def __repr__(self):
         return f'{self.__class__.__name__}(...)'
@@ -179,22 +180,34 @@ class NGinxConfig:
 
     def add_upstream(self, upstream):
         return self._http_directive.add_upstream(upstream)
+
+    def get_all_upstreams(self):
+        return self._http_directive.get_all_upstreams()
+
+    def get_upstream(self, name):
+        return self._http_directive.get_upstream(name)
     
     def remove_upstream(self, name):
         return self._http_directive.remove_upstream(name)
     
+    def get_endpoint(self, name_upstream):
+        return self._http_directive.get_endpoint(name_upstream).rstrip('/')
+        
     def add_route(self, endpoint, upstream_name, *args):
-        return self._http_directive.add_route(endpoint, upstream_name, *args)
+        return self._http_directive.add_route(self._normalize_route(endpoint), upstream_name, *args)
     
     def remove_route(self, endpoint):
-        return self._http_directive.remove_route(endpoint)
+        return self._http_directive.remove_route(self._normalize_route(endpoint))
     
     def update_route(self, endpoint, upstream_name, *args):
-        return self._http_directive.update_route(endpoint, upstream_name, *args)
+        return self._http_directive.update_route(self._normalize_route(endpoint), upstream_name, *args)
     
     def save(self, filepath):
         with open(filepath, 'w') as file:
-            file.writelines(str(g) for g in self._groups.values())
+            file.write('\n\n'.join(str(g) for g in self._groups.values()))
+    
+    def _normalize_route(self, endpoint):
+        return endpoint.rstrip('/') + '/'
 
     @staticmethod
     def from_config_file(config_file):
@@ -223,9 +236,43 @@ class HttpDirective(Group):
     
     def remove_upstream(self, name):
         upstream = next((g for g in self._subgroups if isinstance(g, UpstreamDirective) and  g.name == name), None)
-        assert upstream, 'upstrea {name} does not exist'
+        assert upstream, 'upstream {name} does not exist'
         self._subgroups.remove(upstream)
-    
+
+    #in progress
+    def get_all_upstreams(self):
+        upstreams = [g for g in self._subgroups if isinstance(g, UpstreamDirective)]
+        return upstreams
+
+    def get_upstream(self, name):
+        upstreams = self.get_all_upstreams()
+        upstream = None
+        for i in upstreams:
+            if i.name == name:
+                upstream = i
+        return upstream
+        
+    def get_endpoint(self, name_upstream):
+        endpoints = self._server_directive.get_endpoints()
+        endpoint = None
+        for e in endpoints:
+            if endpoints[e] == name_upstream:
+                endpoint = e
+        return endpoint
+
+    #serve pra nada
+    def get_location(self, endpoint):
+        locations = self._server_directive.get_locations()
+        location = None
+        for l in locations:
+            if l.endpoint == endpoint:
+                location = l
+        return location
+
+
+    def get_endpoints(self):
+        return self._server_directive.get_endpoints()
+
     def add_route(self, endpoint, upstream_name, *args):
         return self._server_directive.add_route(endpoint, upstream_name, *args)
     
@@ -261,19 +308,23 @@ class UpstreamDirective(Group):
         self.name = name
         self._properties[0] = name
     
-    def add_server(self, name, *args, **kwargs):
-        assert not self.get_server(name), 'there is already a server with that name'
-        return self.add_parameter('server', name, *args, **kwargs)
+    def add_server(self, host, *args, **kwargs):
+        assert not self.get_server(host), 'there is already a server with that host'
+        return self.add_parameter('server', host, *args, **kwargs)
     
-    def remove_server(self, name):
-        server_parameter = self.get_server(name)
+    def remove_server(self, host):
+        server_parameter = self.get_server(host)
         assert server_parameter, 'server does not exist'
         self._parameters.remove(server_parameter)
         return server_parameter
 
-    def get_server(self, name):
-        return next((p for p in self._parameters if p.args[0] == name), None)
-    
+    def get_server(self, host):
+        return next((p for p in self._parameters if p.args[0] == host), None)
+
+    def get_all_servers(self):
+        return [(p.args, p.kwargs) for p in self._parameters]
+
+        
     @staticmethod
     def cast(group):
         group.__class__ = UpstreamDirective
@@ -284,7 +335,7 @@ class UpstreamDirective(Group):
 @Group.group_caster('server')
 class ServerDirective(Group):
     def __init__(self, routes=None, server_name=None, port=80):
-        assert not routes or isinstance(parameters, Iterable), 'routes must be iterable'
+        assert not routes or isinstance(routes, Iterable), 'routes must be iterable'
         assert not routes or all(isinstance(r, ServerRoute) for r in routes), \
             'expecting ServerRoute object in routes'
         assert isinstance(port, int), 'port must be integer'
@@ -295,6 +346,20 @@ class ServerDirective(Group):
         
         if server_name:
             self.add_parameter('server_name', server_name)
+
+    def get_endpoints(self):
+        server_routes = self._subgroups
+        endpoints = {}
+        for server_route in server_routes:
+            if server_route.endpoint:
+                endpoints[server_route.endpoint] = server_route.upstream_name
+        if '/' in endpoints:
+            del endpoints['/']
+        return endpoints
+    
+    def get_locations(self):
+        location = self._subgroups
+        return location
 
     def add_route(self, endpoint, upstream_name, *args, https=False):
         server_route = ServerRoute(endpoint, upstream_name, args, https)
@@ -332,7 +397,7 @@ class ServerRoute(Group):
             https_flag = 's' if https else ''
             
             self.add_parameter('set', '$upstream', upstream_name)
-            self.add_parameter('proxy_pass', f'http{https_flag}://{upstream_name}')
+            self.add_parameter('proxy_pass', f'http{https_flag}://{upstream_name}/')
             self.add_parameter('proxy_redirect', '/', endpoint)
             self.add_parameter('proxy_redirect', 'default')
             self.add_parameter('proxy_set_header', 'Upgrade $http_upgrade')
@@ -354,6 +419,7 @@ class ServerRoute(Group):
     @staticmethod
     def cast(group):
         set_upstream_parameter = group.get_parameter('set', '$upstream')
+        # FIXME: shouldn't be args[2]
         upstream_name = set_upstream_parameter and set_upstream_parameter.args[1]
         proxy_pass_parameter = group.get_parameter('proxy_pass')
         https = proxy_pass_parameter and proxy_pass_parameter.args[0].startswith('https')
@@ -367,7 +433,9 @@ class ServerRoute(Group):
         return group
 
 
+
 if __name__ == "__main__":
+    pass
     # config = NGinxConfig()
     # config.set_resolver('127.0.0.1', valid='30s')
     # upstream = UpstreamDirective('lets-chat')
@@ -378,6 +446,5 @@ if __name__ == "__main__":
     # location = config.add_route('/', None)
     # location.add_parameter('deny', 'all')
 
-    config = NGinxConfig.from_config_file('./nginx/nginx.conf')
-    print(config)
-    config.save('./nginx/copy.conf')
+    #config.save('./nginx.conf')
+

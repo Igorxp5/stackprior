@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import socket
 import psutil
 import logging
@@ -172,7 +173,7 @@ class RequestHandler(Thread):
                 logging.info(f'Client {self._address[0]} has requested: {http_method} {route}')
             else:
                 logging.info(f'Client {self._address[0]} is sending other type of message (non-HTTP)')
-            self._evaluate_and_put_request(route, request)
+            self._evaluate_and_put_request(route.decode(), request)
         except socket.timeout:
             logging.info(f'Client {self._address[0]} took a long time to send the request')
             self._respond_resquest_timeout()
@@ -194,7 +195,8 @@ class RequestHandler(Thread):
     
     def _evaluate_and_put_request(self, route, request, http_request=True):
         if http_request:
-            priority = self._route_priorities.get(route, float('inf'))
+            route, sep, subroute = route.strip('/').partition('/')
+            priority = self._route_priorities.get(f'/{route}', float('inf'))
             if not self._queue.empty() and (psutil.cpu_percent() >= self._cpu_threshold 
                 or psutil.virtual_memory().percent >= self._memory_threshold):
                 last_request = self._queue.pop(-1)
@@ -257,26 +259,34 @@ class RoutePriorities:
             return self._config.get(key, default)
     
     def _load_config_file(self):
-        with self._access_config_lock:
+        time.sleep(5)  # the file content is not available when event is triggered
+        logging.info(f'Reading route priorities config file...')
+        config = self._config and self._config.copy() or None
+        try:
             with open(self._config_file) as file:
-                self._config = json.load(file)
-        logging.info(f'Route priorities loaded!')
+                config = json.load(file)
+        except json.decoder.JSONDecodeError:
+            logging.error('Could not read new config file, keep the same priorities...')
+        else:
+            with self._access_config_lock:
+                self._config = config
+            logging.info(f'Route priorities loaded!')
     
     def _start_observe_file_changes(self):
         observer = Observer()
-        # event_handler = RoutePriorities.ObserverEventHandler(self)
-        # observer.schedule(event_handler, path=self._config_file)
-        # observer.start()
+        event_handler = RoutePriorities.ObserverEventHandler(self, self._config_file)
+        observer.schedule(event_handler, path=self._config_file)
+        observer.start()
     
     class ObserverEventHandler(FileModifiedEvent):
         def __init__(self, route_priorities, src_path):
             self._route_priorities = route_priorities
             super().__init__(src_path)
 
-        def on_modified(self, event):
-            logging.info(f'Config files has modified, updating route priorities...')
+        def dispatch(self, event):
+            logging.info(f'FileSystemEvent: {event}...')
             self._route_priorities._load_config_file()
-
+            
 
 def start_server(host, port, forward_host, forward_port, memory_threshold, cpu_threshold, 
                  route_priorities=None):
@@ -311,7 +321,7 @@ if __name__ == '__main__':
     parser.add_argument('port', nargs='?', default=80, type=int, help='HTTP Server port')
     
     parser.add_argument('-r', '--route-file', default=None, help='Route priorities JSON file')
-    parser.add_argument('-l', '--log-level', default='DEBUG', choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), help='Logging level')
+    parser.add_argument('-l', '--log-level', default='INFO', choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), help='Logging level')
     parser.add_argument('-m', '--memory-threshold', default=80, type=float, help='Memory threshold to start dropping requests')
     parser.add_argument('-c', '--cpu-threshold', default=80, type=float, help='CPU threshold to start dropping requests')
 
@@ -319,10 +329,10 @@ if __name__ == '__main__':
     
     route_priorities = None
 
+    logging.basicConfig(level=getattr(logging, args.log_level, None), format=LOG_FORMAT)
+    
     if args.route_file:
         route_priorities = RoutePriorities(args.route_file)
-
-    logging.basicConfig(level=getattr(logging, args.log_level, None), format=LOG_FORMAT)
 
     start_server(args.host, args.port, args.forward_host, args.forward_port, 
                  args.memory_threshold, args.cpu_threshold, route_priorities)
