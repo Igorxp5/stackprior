@@ -12,6 +12,16 @@ services:
       - 80
     depends_on: 
       - shopping-cart
+  platform:
+    container_name: stackprior-platform
+    build:
+      context: ./client
+    volumes:
+      - ./client:/app
+    ports:
+      - 8081:3000
+    depends_on: 
+      - api
   api:
     container_name: stackprior-api
     build:
