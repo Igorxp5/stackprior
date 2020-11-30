@@ -57,8 +57,10 @@ def making_get(upstream):
         dic['servers'].append(server_info)
 
     endpoint = configurer.get_endpoint(upstream.name)
+    sub_endpoint = configurer.get_sub_endpoint(upstream.name)
 
     dic['endpoint'] = endpoint
+    dic['sub-endpoint'] = sub_endpoint
 
     
     priorities = get_priorities(PATH_MQUEUE)
@@ -101,6 +103,7 @@ def _services(service=None):
 def create():
     service = request.json
     name, endpoint, priority , strategy, servers = service['name'], service['endpoint'], service['priority'], service['strategy'], service['servers']
+    sub_endpoint = service.get('sub-endpoint')
 
     #Name of service can't be the same
     if configurer.get_upstream(name):
@@ -113,27 +116,31 @@ def create():
 
     configurer.set_resolver('127.0.0.11', valid='30s')
     upstream = UpstreamDirective(name)
+    kwargs = {'max_fails': 15, 'fail_timeout': 600}
+    
     if strategy == 'priority':
+        kwargs['weight'] = 0
         #three parameters in add_server, server, port and weight
         for server in servers:
+            kwargs['weight'] = server['weight']
             host_port = str(server["host"])+":"+str(server["port"])
-            upstream.add_server(host_port, weight = server['weight'])
+            upstream.add_server(host_port, **kwargs)
 
     if strategy == 'dns':
-        #one parameter in add_server, server
+        # one parameter in add_server, server
         for server in servers:
-            upstream.add_server(server["host"])
+            upstream.add_server(server["host"], **kwargs)
 
 
     if strategy == 'round-robin':
-        #two parameters in add_server, server and port
+        # two parameters in add_server, server and port
         for server in servers:
             host_port = str(server["host"])+":"+str(server["port"])
-            upstream.add_server(host_port)
+            upstream.add_server(host_port, **kwargs)
 
 
     configurer.add_upstream(upstream)
-    configurer.add_route(endpoint, upstream.name)
+    configurer.add_route(endpoint, upstream.name, sub_endpoint=sub_endpoint)
 
     configurer.save(PATH_NGINX)
     set_priority(PATH_MQUEUE, endpoint, priority)
@@ -182,6 +189,7 @@ def update(service):
 
     update_data = request.json
     name, endpoint, priority , strategy, servers = update_data['name'], update_data['endpoint'], update_data['priority'], update_data['strategy'], update_data['servers']
+    sub_endpoint = update_data.get('sub-endpoint')
 
     #DELETING
 
@@ -212,29 +220,32 @@ def update(service):
     #CREATING
 
     configurer.set_resolver('127.0.0.11', valid='30s')
-    new_upstream = UpstreamDirective(name)
-
+    upstream = UpstreamDirective(name)
+    kwargs = {'max_fails': 15, 'fail_timeout': 600}
+    
     if strategy == 'priority':
+        kwargs['weight'] = 0
         #three parameters in add_server, server, port and weight
         for server in servers:
+            kwargs['weight'] = server['weight']
             host_port = str(server["host"])+":"+str(server["port"])
-            new_upstream.add_server(host_port, weight= server['weight'])
+            upstream.add_server(host_port, **kwargs)
 
     if strategy == 'dns':
-        #one parameter in add_server, server
+        # one parameter in add_server, server
         for server in servers:
-            new_upstream.add_server(server["host"])
+            upstream.add_server(server["host"], **kwargs)
 
 
     if strategy == 'round-robin':
-        #two parameters in add_server, server and port
+        # two parameters in add_server, server and port
         for server in servers:
             host_port = str(server["host"])+":"+str(server["port"])
-            new_upstream.add_server(host_port)
+            upstream.add_server(host_port, **kwargs)
 
 
     configurer.add_upstream(new_upstream)
-    configurer.add_route(endpoint, new_upstream.name)
+    configurer.add_route(endpoint, new_upstream.name, sub_endpoint=sub_endpoint)
 
     configurer.save(PATH_NGINX)
     set_priority(PATH_MQUEUE, endpoint, priority)

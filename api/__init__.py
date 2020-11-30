@@ -30,8 +30,8 @@ assert NGINX_CONFIG_FILE and os.path.exists(NGINX_CONFIG_FILE), \
 assert MQUEUE_CONFIG_FILE and os.path.exists(MQUEUE_CONFIG_FILE), \
     'Set "MQUEUE_CONFIG_FILE" as valid priority queue config file'
 
-assert DB_HOST and DB_USER and DB_PASS, \
-    'Set "DB_HOST", "DB_USER" and "DB_PASS" environment variables'
+# assert DB_HOST and DB_USER and DB_PASS, \
+#     'Set "DB_HOST", "DB_USER" and "DB_PASS" environment variables'
 
 # Create a empty JSON file
 if os.path.getsize(MQUEUE_CONFIG_FILE) == 0:
@@ -45,8 +45,8 @@ if os.path.getsize(NGINX_CONFIG_FILE) == 0:
     configurer.save(NGINX_CONFIG_FILE)
 
 
-mongo_client = MongoClient(f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/')
-mongodb = mongo_client[DB_NAME]
+# ongo_client = MongoClient(f'mongodb://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/')
+# mongodb = mongo_client[DB_NAME]
 
 configurer = NGinxConfig.from_config_file(NGINX_CONFIG_FILE)
 
@@ -64,7 +64,7 @@ route_services = app.route('/services/<service>', methods= ['DELETE', 'GET', 'PU
     services(nginx_container, configurer, app, NGINX_CONFIG_FILE, MQUEUE_CONFIG_FILE)
 )
 app.route('/services/', methods= ["POST", 'GET'])(route_services)
-app.route('/metrics/')(metrics(mongodb))
+# app.route('/metrics/')(metrics(mongodb))
 
 if __name__ == '__main__':
     app.run(host=HOST, port=PORT)
