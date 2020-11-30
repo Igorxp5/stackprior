@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 
 GROUP_REGEX = r'(\S+) ?(.*?) ?\{([^\{\}]*)\}'
-PARAMETER_REGEX = r'(\S+?)( .+)?;'
+PARAMETER_REGEX = r'(\S+?)( (.+))?;'
 
 
 class ParserError(Exception):
@@ -112,7 +112,7 @@ class Group:
             parameters = []
             raw_parameters = re.finditer(PARAMETER_REGEX, content)
             for match_parameter in raw_parameters:
-                name, args = match_parameter.groups()
+                name, _, args = match_parameter.groups()
                 args = re.split(r'\s', args)
                 kwargs = {}
                 for arg in args:
@@ -204,7 +204,6 @@ class NGinxConfig:
         return self._http_directive.add_route(endpoint, upstream_name, *args)
     
     def remove_route(self, endpoint):
-        raise RuntimeError(repr(endpoint))
         return self._http_directive.remove_route(endpoint)
     
     def update_route(self, endpoint, upstream_name, *args):
@@ -327,7 +326,7 @@ class UpstreamDirective(Group):
         return next((p for p in self._parameters if p.args[0] == host), None)
 
     def get_all_servers(self):
-        return [p.args[1] for p in self._parameters]
+        return [(p.args, p.kwargs) for p in self._parameters]
 
         
     @staticmethod
@@ -424,7 +423,7 @@ class ServerRoute(Group):
     def cast(group):
         set_upstream_parameter = group.get_parameter('set', '$upstream')
         # FIXME: shouldn't be args[2]
-        upstream_name = set_upstream_parameter and set_upstream_parameter.args[2]
+        upstream_name = set_upstream_parameter and set_upstream_parameter.args[1]
         proxy_pass_parameter = group.get_parameter('proxy_pass')
         https = proxy_pass_parameter and proxy_pass_parameter.args[0].startswith('https')
         proxy_redirect_parameter = group.get_parameter('proxy_redirect', '/')
@@ -435,6 +434,7 @@ class ServerRoute(Group):
         group._upstream_name = upstream_name 
         group._https = https
         return group
+
 
 
 if __name__ == "__main__":
@@ -448,6 +448,5 @@ if __name__ == "__main__":
     # location = config.add_route('/', None)
     # location.add_parameter('deny', 'all')
 
-    config = NGinxConfig.from_config_file('./nginx/nginx.conf')
-    print(config)
-    config.save('./nginx/copy.conf')
+    #config.save('./nginx.conf')
+
