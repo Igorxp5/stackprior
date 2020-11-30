@@ -4,7 +4,7 @@ services:
     container_name: stackprior-nginx
     image: nginx:latest
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on: 
       - lets-chat-1
       - lets-chat-2
@@ -28,15 +28,16 @@ services:
       context: ./api
     volumes:
       - ./api:/api
-      - ./nginx:/nginx
+      - ./config:/config
       - /var/run/docker.sock:/var/run/docker.sock
     environment: 
       PORT: 8080
       DB_HOST: mongodb
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
-      NGINX_CONFIG_FILE: /nginx/nginx.conf
+      NGINX_CONFIG_FILE: /config/nginx.conf
       NGINX_CONTAINER_NAME: stackprior-nginx
+      MQUEUE_CONFIG_FILE: /config/mqueue.json
       DOCKER_UNIX_SOCKET: /var/run/docker.sock
     ports:
       - 8080:8080
@@ -47,10 +48,10 @@ services:
     container_name: stackprior-mqueue
     build:
       context: ./mqueue
-    command: python __init__.py -r /nginx/mqueue.json nginx 80 0.0.0.0 80
+    command: python __init__.py -r /config/mqueue.json nginx 80 0.0.0.0 80
     volumes:
-      - ./mqueue:/mqueue
-      - ./nginx:/nginx
+      - ./mqueue:/mqueue:ro
+      - ./config:/config
     ports:
       - 80:80
     networks: 

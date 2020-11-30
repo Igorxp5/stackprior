@@ -9,18 +9,12 @@ app = None
 configurer = None
 nginx_container = None
 
-PATH_NGINX = '../../nginx/nginx.conf'
-PATH_MQUEUE = '../../nginx/mqueue.json'
+PATH_NGINX = None
+PATH_MQUEUE = None
 
-def get_pid(name):
-    ugly_data = nginx_container.exec_run(["pidof",name])[1]
-    data = ugly_data.decode()
-    pids = map(int,data.split())
-    return min(list((pids)))
 
 def restart_nginx():
-    pid = get_pid('nginx')
-    nginx_container.exec_run(f"kill -HUP {pid}")
+    nginx_container.exec_run(f'nginx -s reload')
 
 
 def get_priorities(path):
@@ -74,11 +68,13 @@ def making_get(upstream):
     return dic
 
 
-def services(nginx_container_, configurer_, app_):
-    global configurer, nginx_container, app
+def services(nginx_container_, configurer_, app_, nginx_config_file, mqueue_config_file):
+    global configurer, nginx_container, app, PATH_NGINX, PATH_MQUEUE
     configurer = configurer_
     nginx_container = nginx_container_
     app = app_
+    PATH_NGINX = nginx_config_file
+    PATH_MQUEUE = mqueue_config_file
 
     return _services
 
@@ -93,17 +89,16 @@ def _services(service=None):
     if request.method == "GET" and service:
         return get(service)
 
-    if request.method == "GET" and not service :
+    if request.method == "GET" and not service:
         return index()
     
     if request.method == "PUT" and service:
         return update(service)
 
-    return f'Services: {service}'
+    return {'error': 'invalid request'}, 400
 
 
 def create():
-    
     service = request.json
     name, endpoint, priority , strategy, servers = service['name'], service['endpoint'], service['priority'], service['strategy'], service['servers']
 
@@ -116,7 +111,7 @@ def create():
         if e == endpoint:
             return {"error:" : "Endpoint already exists"}, 400
 
-    configurer.set_resolver('127.0.0.1', valid='30s')
+    configurer.set_resolver('127.0.0.11', valid='30s')
     upstream = UpstreamDirective(name)
     if strategy == 'priority':
         #three parameters in add_server, server, port and weight
@@ -216,7 +211,7 @@ def update(service):
 
     #CREATING
 
-    configurer.set_resolver('127.0.0.1', valid='30s')
+    configurer.set_resolver('127.0.0.11', valid='30s')
     new_upstream = UpstreamDirective(name)
 
     if strategy == 'priority':

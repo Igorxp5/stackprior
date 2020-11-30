@@ -170,6 +170,7 @@ class NGinxConfig:
         if not self._http_directive:
             self._http_directive = HttpDirective(server_name, server_port)
             self._groups['http'] = self._http_directive
+        self._groups['events'] = Group('events')
 
     def __repr__(self):
         return f'{self.__class__.__name__}(...)'
@@ -189,29 +190,24 @@ class NGinxConfig:
     def remove_upstream(self, name):
         return self._http_directive.remove_upstream(name)
     
-    
     def get_endpoint(self, name_upstream):
-        return self._http_directive.get_endpoint(name_upstream)
-    
-    # TODO tirar depois
-    def get_location(self, endpoint):
-        return self._http_directive.get_location(endpoint).upstream_name
-    # tirar tbm
-    def remove_location(self, endpoint):
-        return self._http_directive.remove_location(endpoint)
+        return self._http_directive.get_endpoint(name_upstream).rstrip('/')
         
     def add_route(self, endpoint, upstream_name, *args):
-        return self._http_directive.add_route(endpoint, upstream_name, *args)
+        return self._http_directive.add_route(self._normalize_route(endpoint), upstream_name, *args)
     
     def remove_route(self, endpoint):
-        return self._http_directive.remove_route(endpoint)
+        return self._http_directive.remove_route(self._normalize_route(endpoint))
     
     def update_route(self, endpoint, upstream_name, *args):
-        return self._http_directive.update_route(endpoint, upstream_name, *args)
+        return self._http_directive.update_route(self._normalize_route(endpoint), upstream_name, *args)
     
     def save(self, filepath):
         with open(filepath, 'w') as file:
-            file.writelines(str(g) for g in self._groups.values())
+            file.write('\n\n'.join(str(g) for g in self._groups.values()))
+    
+    def _normalize_route(self, endpoint):
+        return endpoint.rstrip('/') + '/'
 
     @staticmethod
     def from_config_file(config_file):
@@ -357,7 +353,8 @@ class ServerDirective(Group):
         for server_route in server_routes:
             if server_route.endpoint:
                 endpoints[server_route.endpoint] = server_route.upstream_name
-        del endpoints['/']
+        if '/' in endpoints:
+            del endpoints['/']
         return endpoints
     
     def get_locations(self):
@@ -400,7 +397,7 @@ class ServerRoute(Group):
             https_flag = 's' if https else ''
             
             self.add_parameter('set', '$upstream', upstream_name)
-            self.add_parameter('proxy_pass', f'http{https_flag}://{upstream_name}')
+            self.add_parameter('proxy_pass', f'http{https_flag}://{upstream_name}/')
             self.add_parameter('proxy_redirect', '/', endpoint)
             self.add_parameter('proxy_redirect', 'default')
             self.add_parameter('proxy_set_header', 'Upgrade $http_upgrade')
@@ -438,6 +435,7 @@ class ServerRoute(Group):
 
 
 if __name__ == "__main__":
+    pass
     # config = NGinxConfig()
     # config.set_resolver('127.0.0.1', valid='30s')
     # upstream = UpstreamDirective('lets-chat')
