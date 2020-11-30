@@ -107,7 +107,9 @@ class ProxyConnection(Thread):
         except IOError:
             logging.debug(f'Connection to {self._address[0]} has closed')
         finally:
+            proxy_socket.shutdown(socket.SHUT_RDWR)
             proxy_socket.close()
+            self._client_socket.shutdown(socket.SHUT_RDWR)
             self._client_socket.close()
 
 
@@ -166,6 +168,7 @@ class RequestHandler(Thread):
                 logging.debug(f'Client {self._address[0]} has request ' \
                                 f'an invalid HTTP method: {repr(http_method)}')
                 self._respond_invalid_http_method()
+                self._client_socket.shutdown(socket.SHUT_RDWR)
                 return self._client_socket.close()
             first_line = http_method + b' ' + route + b' ' + http_version + b'\r\n'
             request = first_line, self._client_socket, self._address
@@ -177,44 +180,56 @@ class RequestHandler(Thread):
         except socket.timeout:
             logging.info(f'Client {self._address[0]} took a long time to send the request')
             self._respond_resquest_timeout()
+            self._client_socket.shutdown(socket.SHUT_RDWR)
             self._client_socket.close()
         except UnicodeDecodeError:
             self._respond_bad_request()
+            self._client_socket.shutdown(socket.SHUT_RDWR)
             self._client_socket.close()
         except Exception:
             logging.error(f'Something wrong happened during request reading!')
             logging.error(traceback.format_exc())
+            self._client_socket.shutdown(socket.SHUT_RDWR)
             self._client_socket.close()
 
     def _drop_request(self, request):
         client_socket = request[1]
-        content = header + b'\r\n'
+        content = b'HTTP/1.1 503 Service Unavailable\r\n'
         content += b'Connection: close\r\n'
+        content += b'Retry-after: \r\n'
         content += b'Content-Length: 0\r\n\r\n'
         client_socket.sendall(content)
-    
+        client_socket.shutdown(socket.SHUT_RDWR)
+        client_socket.close()
+
     def _evaluate_and_put_request(self, route, request, http_request=True):
         if http_request:
             route, sep, subroute = route.strip('/').partition('/')
             priority = self._route_priorities.get(f'/{route}', float('inf'))
-            if not self._queue.empty() and (psutil.cpu_percent() >= self._cpu_threshold 
-                or psutil.virtual_memory().percent >= self._memory_threshold):
+            prioritized, deprioritized = None, None
+            cpu_percent = psutil.cpu_percent()
+            memory_percent = psutil.virtual_memory().percent 
+            logging.info(f'CPU Percent: {cpu_percent}\tMemory Percent: {memory_percent}')
+            logging.info(f'CPU Threshold: {self._cpu_threshold}\tMemory Threshold: {self._memory_threshold}')
+            if not self._queue.empty() and (cpu_percent >= self._cpu_threshold \
+                or memory_percent >= self._memory_threshold):
                 last_request = self._queue.pop(-1)
                 if last_request.priority > priority:
                     prioritized, deprioritized = request, last_request
                 else:
                     prioritized, deprioritized = last_request, request
-                self._drop_request(deprioritized)
             else:
                 prioritized = request
             if prioritized is request:
                 logging.info(f'Add request to the queue with priority: {priority}')
+            elif deprioritized is request:
+                logging.info(f'Server is overloaded dropping current request')
             else:
-                logging.info(f'Server is overloaded dropping request')
-        else:
-            priority = float('inf')
-            prioritized = request
-        self._queue.put(PrioritizedItem(priority, prioritized, http_request))
+                logging.info(f'Server is overloaded dropping last request in the queue')
+
+            if deprioritized:
+                self._drop_request(deprioritized)
+            self._queue.put(PrioritizedItem(priority, prioritized, http_request))
 
     def _respond_invalid_http_method(self):
         self._http_no_body_response(b'HTTP/1.1 405 Method Not Allowed')

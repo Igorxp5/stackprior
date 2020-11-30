@@ -154,7 +154,7 @@ class Parameter:
         self.kwargs = kwargs
     
     def __str__(self):
-        kwargs = (f"{k}={shlex.quote(str(v)) if v else ''}" for k, v in self.kwargs.items())
+        kwargs = (f"{k}={shlex.quote(str(v)) if v is not None else ''}" for k, v in self.kwargs.items())
         return ' '.join(map(str, itertools.chain((self.name,), self.args, kwargs)))
 
     def __repr__(self):
@@ -192,15 +192,18 @@ class NGinxConfig:
     
     def get_endpoint(self, name_upstream):
         return self._http_directive.get_endpoint(name_upstream).rstrip('/')
+    
+    def get_sub_endpoint(self, name_upstream):
+        return self._http_directive.get_sub_endpoint(name_upstream).rstrip('/')
         
-    def add_route(self, endpoint, upstream_name, *args):
-        return self._http_directive.add_route(self._normalize_route(endpoint), upstream_name, *args)
+    def add_route(self, endpoint, upstream_name, *args, sub_endpoint=None):
+        return self._http_directive.add_route(self._normalize_route(endpoint), upstream_name, *args, sub_endpoint=sub_endpoint)
     
     def remove_route(self, endpoint):
         return self._http_directive.remove_route(self._normalize_route(endpoint))
     
-    def update_route(self, endpoint, upstream_name, *args):
-        return self._http_directive.update_route(self._normalize_route(endpoint), upstream_name, *args)
+    def update_route(self, endpoint, upstream_name, *args, sub_endpoint=None):
+        return self._http_directive.update_route(self._normalize_route(endpoint), upstream_name, *args, sub_endpoint=sub_endpoint)
     
     def save(self, filepath):
         with open(filepath, 'w') as file:
@@ -255,10 +258,18 @@ class HttpDirective(Group):
     def get_endpoint(self, name_upstream):
         endpoints = self._server_directive.get_endpoints()
         endpoint = None
-        for e in endpoints:
-            if endpoints[e] == name_upstream:
+        for e, (endpoint_upstream, sub_endpoint) in endpoints.items():
+            if endpoint_upstream == name_upstream:
                 endpoint = e
         return endpoint
+    
+    def get_sub_endpoint(self, name_upstream):
+        endpoints = self._server_directive.get_endpoints()
+        sub_endpoint = None
+        for e, (endpoint_upstream, sub_endpoint) in endpoints.items():
+            if endpoint_upstream == name_upstream:
+                sub_endpoint = sub_endpoint
+        return sub_endpoint
 
     #serve pra nada
     def get_location(self, endpoint):
@@ -273,14 +284,14 @@ class HttpDirective(Group):
     def get_endpoints(self):
         return self._server_directive.get_endpoints()
 
-    def add_route(self, endpoint, upstream_name, *args):
-        return self._server_directive.add_route(endpoint, upstream_name, *args)
+    def add_route(self, endpoint, upstream_name, *args, sub_endpoint=None):
+        return self._server_directive.add_route(endpoint, upstream_name, *args, sub_endpoint=sub_endpoint)
     
     def remove_route(self, endpoint):
         return self._server_directive.remove_route(endpoint)
     
-    def update_route(self, endpoint, upstream_name, *args):
-        return self._server_directive.update_route(endpoint, upstream_name, *args)
+    def update_route(self, endpoint, upstream_name, *args, sub_endpoint=None):
+        return self._server_directive.update_route(endpoint, upstream_name, *args, sub_endpoint=sub_endpoint)
     
     @staticmethod
     def cast(group):
@@ -352,7 +363,7 @@ class ServerDirective(Group):
         endpoints = {}
         for server_route in server_routes:
             if server_route.endpoint:
-                endpoints[server_route.endpoint] = server_route.upstream_name
+                endpoints[server_route.endpoint] = server_route.upstream_name, server_route.sub_endpoint 
         if '/' in endpoints:
             del endpoints['/']
         return endpoints
@@ -361,8 +372,8 @@ class ServerDirective(Group):
         location = self._subgroups
         return location
 
-    def add_route(self, endpoint, upstream_name, *args, https=False):
-        server_route = ServerRoute(endpoint, upstream_name, args, https)
+    def add_route(self, endpoint, upstream_name, *args, sub_endpoint=None, https=False):
+        server_route = ServerRoute(endpoint, upstream_name, sub_endpoint, args, https)
         self.add_subgroup(server_route)
         return server_route
     
@@ -372,9 +383,9 @@ class ServerDirective(Group):
         self._subgroups.remove(server_route)
         return server_route
     
-    def update_route(self, endpoint, upstream_name, *args, https=False):
+    def update_route(self, endpoint, upstream_name, *args, sub_endpoint=None, https=False):
         self.remove_route(endpoint)
-        return self.add_route(endpoint, upstream_name, *args, https)
+        return self.add_route(endpoint, upstream_name, sub_endpoint, *args, https)
     
     @staticmethod
     def cast(group):
@@ -384,21 +395,25 @@ class ServerDirective(Group):
 
 @Group.group_caster('location')
 class ServerRoute(Group):
-    def __init__(self, endpoint, upstream_name=None, parameters=None, https=False):
+    def __init__(self, endpoint, upstream_name=None, sub_endpoint=None, parameters=None, https=False):
         assert endpoint, 'endpoint cannot be empty string or None'
 
         super().__init__('location', (endpoint,), parameters)
 
-        self._endpoint = endpoint
+        self._endpoint = endpoint.strip('/')
+        self._sub_endpoint = sub_endpoint.strip('/') if sub_endpoint else ''
         self._upstream_name = upstream_name
         self._https = https 
         
         if upstream_name:
             https_flag = 's' if https else ''
             
+            sub_endpoint = f'{self.sub_endpoint}/' if self._sub_endpoint else '/'
+            proxy_redirect = f'{self.endpoint}{sub_endpoint}'
+
             self.add_parameter('set', '$upstream', upstream_name)
-            self.add_parameter('proxy_pass', f'http{https_flag}://{upstream_name}/')
-            self.add_parameter('proxy_redirect', '/', endpoint)
+            self.add_parameter('proxy_pass', f'http{https_flag}://{upstream_name}{sub_endpoint}')
+            self.add_parameter('proxy_redirect', '/', proxy_redirect)
             self.add_parameter('proxy_redirect', 'default')
             self.add_parameter('proxy_set_header', 'Upgrade $http_upgrade')
             self.add_parameter('proxy_set_header', 'Connection "upgrade"')
@@ -406,8 +421,12 @@ class ServerRoute(Group):
 
     @property
     def endpoint(self):
-        return self._endpoint
+        return f'/{self._endpoint}'
     
+    @property
+    def sub_endpoint(self):
+        return f'/{self._sub_endpoint}'
+
     @property
     def upstream_name(self):
         return self._upstream_name
@@ -419,15 +438,16 @@ class ServerRoute(Group):
     @staticmethod
     def cast(group):
         set_upstream_parameter = group.get_parameter('set', '$upstream')
-        # FIXME: shouldn't be args[2]
         upstream_name = set_upstream_parameter and set_upstream_parameter.args[1]
         proxy_pass_parameter = group.get_parameter('proxy_pass')
         https = proxy_pass_parameter and proxy_pass_parameter.args[0].startswith('https')
         proxy_redirect_parameter = group.get_parameter('proxy_redirect', '/')
-        endpoint = group._properties[0]
+        route = re.search(r'https?\:\/\/(.+?)/(.+)', proxy_pass_parameter.args[0])
+        endpoint, sub_endpoint = route.groups()
         
         group.__class__ = ServerRoute
-        group._endpoint = endpoint 
+        group._endpoint = endpoint
+        group._sub_endpoint = sub_endpoint.strip('/')
         group._upstream_name = upstream_name 
         group._https = https
         return group

@@ -1,7 +1,7 @@
 __pycache__/
 
-config/
-!/*/config/
+# config/
+# !/*/config/
 
 # Ignore data produced in runtime
 data/
