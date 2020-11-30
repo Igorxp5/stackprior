@@ -83,7 +83,7 @@ services:
 
   shopping-cart:
     container_name: shopping-cart
-    image: kalpitmantri/shopping-cart-rest-api:latest
+    image: igorxp5/shopping-cart-rest-api:latest
     environment: 
       MONGODB_URI: mongodb://${DB_USER}:${DB_PASS}@shopping-cart-mongo
     networks: 
