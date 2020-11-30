@@ -1,0 +1,25 @@
+body {
+  background-color: #e6e6e6;
+  margin: 0;
+  padding: 0;
+  font-family: "SWIS721 BLKCN", sans-serif, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #e6e6e6;
+  margin: 0;
+  color: #1b1a20;
+  font-family: "SWIS721 BLKCN", sans-serif;
+}
+
+main {
+  background-color: #e6e6e6;
+  display: flex;
+  padding: 20px 2%;
+  max-width: 1200px;
+  margin: 50px auto 0 auto;
+}
